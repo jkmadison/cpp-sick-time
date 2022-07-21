@@ -1,8 +1,13 @@
 #include <iostream>
 #include <cmath>
 #include "concolors.h"
+#include "record.h"
+#include <fstream>
 
-int getMonthsOfService(int);
+Record user;
+void getMonthsOfService(Record &);
+void printReport(Record);
+void writeToFile(Record);
 
 int main(int argc, char *argv[], char *envp[])
 {
@@ -13,24 +18,21 @@ int main(int argc, char *argv[], char *envp[])
     }
     try
     {
-        const double input = std::stod(argv[1]);
-        std::cout << GREEN
-                  << "Unconverted sick time hours: "
-                  << YELLOW << input << RESET << std::endl;
-        const double days = floor(input / 10.64);
-        std::cout << GREEN
-                  << "Converted sick leave days: "
-                  << YELLOW << days << RESET << std::endl;
-        if (days > 730)
+        user.sicktime = std::stod(argv[1]);
+
+        user.convertedToDays = floor(user.sicktime / 10.64);
+
+        if (user.convertedToDays > 730)
         {
             throw 999;
         }
-        const int months = getMonthsOfService(days);
-        if (months == -1)
+        getMonthsOfService(user);
+        if (user.serviceMonths == -1)
         {
             throw 988;
         }
-        std::cout << GREEN << "Months of service credit: " << YELLOW << months << RESET << std::endl;
+        printReport(user);
+        writeToFile(user);
     }
     catch (int error)
     {
@@ -58,23 +60,52 @@ int main(int argc, char *argv[], char *envp[])
     return 0;
 }
 
-int getMonthsOfService(int days)
+void getMonthsOfService(Record &u)
 {
-    if (days <= 10)
+    if (u.convertedToDays <= 10)
     {
-        return 0;
+        return;
     }
     for (int i = 1; i < 37; i++)
     {
         const int lower = (i * 20) - 9;
         const int upper = (i * 20) + 10;
-        if (days >= lower && days <= upper)
+        if (u.convertedToDays >= lower && u.convertedToDays <= upper)
         {
-            std::cout << MAGENTA << "Unused days: " << YELLOW << (days - lower) << RESET << std::endl;
-            std::cout << MAGENTA << "Unused days converted back to hours: " << YELLOW << (days - lower) * 10.64 << RESET << std::endl;
-            return i;
+            u.serviceMonths = i;
+            u.unusedDays = u.convertedToDays - lower;
+            u.unusedHours = u.unusedDays * 10.64;
             break;
         }
     }
-    return -1;
+}
+
+void printReport(Record u)
+{
+    std::cout << GREEN
+              << "Unconverted sick time hours: "
+              << YELLOW << u.sicktime << RESET << std::endl;
+    std::cout << GREEN
+              << "Converted sick leave days: "
+              << YELLOW << u.convertedToDays << RESET << std::endl;
+
+    std::cout << GREEN << "Months of service credit: " << YELLOW << u.serviceMonths << RESET << std::endl;
+    std::cout << MAGENTA << "Unused days: " << YELLOW << u.unusedDays << RESET << std::endl;
+    std::cout << MAGENTA << "Unused days converted back to hours: " << YELLOW << u.unusedHours << RESET << std::endl;
+}
+
+void writeToFile(Record u)
+{
+    std::ofstream file("user.txt", std::ofstream::out);
+    if (file.fail())
+    {
+        std::cout << "There was an error" << std::endl;
+    }
+    file << "Unconverted sick time hours: " << u.sicktime << "\n";
+    file << "Converted sick leave days: " << u.convertedToDays << "\n";
+    file << "Months of service credit: " << u.serviceMonths << "\n";
+    file << "Unused days: " << u.unusedDays << "\n";
+    file << "Unused days converted back to hours: " << u.unusedHours << "\n";
+
+    file.close();
 }
